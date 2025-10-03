@@ -1,0 +1,14 @@
+# Git Attributes for Azure Inventory Exporter
+
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Force bash scripts to always use LF (Unix line endings)
+*.sh text eol=lf
+
+# Force text files to use LF
+*.md text eol=lf
+*.txt text eol=lf
+
+# Ensure CSV files use LF
+*.csv text eol=lf
