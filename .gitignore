@@ -1,0 +1,33 @@
+# Azure Inventory Exporter - Git Ignore File
+
+# Exclude all CSV output files (contain potentially sensitive infrastructure data)
+*.csv
+
+# Exclude temporary files
+*.tmp
+*.log
+
+# Exclude macOS specific files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Exclude Linux specific files
+*~
+.directory
+
+# Exclude Windows specific files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Exclude editor/IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Exclude backup files
+*.bak
+*.backup
