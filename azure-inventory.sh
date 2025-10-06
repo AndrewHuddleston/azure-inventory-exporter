@@ -530,10 +530,22 @@ while IFS= read -r sub_id; do
                 NSG_RG=$(az network nsg list --query "[?name=='$nsg_name'].resourceGroup" -o tsv 2>/dev/null)
                 
                 if [ -n "$NSG_RG" ]; then
-                    RULES=$(az network nsg rule list -g "$NSG_RG" --nsg-name "$nsg_name" --query "[].[name, priority, direction, sourceAddressPrefix, sourcePortRange, destinationAddressPrefix, destinationPortRange, protocol, access]" -o tsv 2>/dev/null)
+                    # Use JSON output to avoid tab-parsing issues with null/empty values
+                    RULES_JSON=$(az network nsg rule list -g "$NSG_RG" --nsg-name "$nsg_name" --query "[]" -o json 2>/dev/null)
                     
-                    if [ -n "$RULES" ]; then
-                        echo "$RULES" | while IFS=$'\t' read -r rule_name priority direction src_addr src_port dst_addr dst_port protocol action; do
+                    if [ -n "$RULES_JSON" ] && [ "$RULES_JSON" != "[]" ]; then
+                        echo "$RULES_JSON" | jq -r '.[] | [.name, .priority, .direction, .sourceAddressPrefix, .sourcePortRange, .destinationAddressPrefix, .destinationPortRange, .protocol, .access] | @tsv' | while IFS=$'\t' read -r rule_name priority direction src_addr src_port dst_addr dst_port protocol action; do
+                            # Ensure no values are "null" strings
+                            [ "$rule_name" = "null" ] && rule_name=""
+                            [ "$priority" = "null" ] && priority=""
+                            [ "$direction" = "null" ] && direction=""
+                            [ "$src_addr" = "null" ] && src_addr=""
+                            [ "$src_port" = "null" ] && src_port=""
+                            [ "$dst_addr" = "null" ] && dst_addr=""
+                            [ "$dst_port" = "null" ] && dst_port=""
+                            [ "$protocol" = "null" ] && protocol=""
+                            [ "$action" = "null" ] && action=""
+                            
                             # Create unique key for deduplication
                             RULE_KEY="${priority}|${direction}|${rule_name}|${src_addr}|${src_port}|${dst_addr}|${dst_port}|${protocol}|${action}"
                             
