@@ -534,18 +534,8 @@ while IFS= read -r sub_id; do
                     RULES_JSON=$(az network nsg rule list -g "$NSG_RG" --nsg-name "$nsg_name" --query "[]" -o json 2>/dev/null)
                     
                     if [ -n "$RULES_JSON" ] && [ "$RULES_JSON" != "[]" ]; then
-                        echo "$RULES_JSON" | jq -r '.[] | [.name, .priority, .direction, .sourceAddressPrefix, .sourcePortRange, .destinationAddressPrefix, .destinationPortRange, .protocol, .access] | @tsv' | while IFS=$'\t' read -r rule_name priority direction src_addr src_port dst_addr dst_port protocol action; do
-                            # Ensure no values are "null" strings
-                            [ "$rule_name" = "null" ] && rule_name=""
-                            [ "$priority" = "null" ] && priority=""
-                            [ "$direction" = "null" ] && direction=""
-                            [ "$src_addr" = "null" ] && src_addr=""
-                            [ "$src_port" = "null" ] && src_port=""
-                            [ "$dst_addr" = "null" ] && dst_addr=""
-                            [ "$dst_port" = "null" ] && dst_port=""
-                            [ "$protocol" = "null" ] && protocol=""
-                            [ "$action" = "null" ] && action=""
-                            
+                        # Use jq to handle nulls explicitly by converting to empty strings
+                        echo "$RULES_JSON" | jq -r '.[] | [(.name // ""), (.priority // ""), (.direction // ""), (.sourceAddressPrefix // ""), (.sourcePortRange // ""), (.destinationAddressPrefix // ""), (.destinationPortRange // ""), (.protocol // ""), (.access // "")] | @tsv' | while IFS=$'\t' read -r rule_name priority direction src_addr src_port dst_addr dst_port protocol action; do
                             # Create unique key for deduplication
                             RULE_KEY="${priority}|${direction}|${rule_name}|${src_addr}|${src_port}|${dst_addr}|${dst_port}|${protocol}|${action}"
                             
