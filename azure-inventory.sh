@@ -545,7 +545,18 @@ while IFS= read -r sub_id; do
                             (.destinationAddressPrefix // "-") + "\t" + 
                             (if .destinationPortRange then (if (.destinationPortRange | type) == "array" then (.destinationPortRange | join(",")) else (.destinationPortRange | tostring) end) else "-" end) + "\t" + 
                             (.protocol // "-") + "\t" + 
-                            (.access // "-")' | while IFS=$'\t' read -r priority direction rule_name src_addr src_port dst_addr dst_port protocol action; do
+                            (.access // "-")' | while IFS=$'\t' read -r priority direction rule_name src_addr src_port dst_addr dst_port protocol action || [ -n "$priority" ]; do
+                            # Ensure all fields have values (use - as placeholder for empty)
+                            priority=${priority:-"-"}
+                            direction=${direction:-"-"}
+                            rule_name=${rule_name:-"-"}
+                            src_addr=${src_addr:-"-"}
+                            src_port=${src_port:-"-"}
+                            dst_addr=${dst_addr:-"-"}
+                            dst_port=${dst_port:-"-"}
+                            protocol=${protocol:-"-"}
+                            action=${action:-"-"}
+                            
                             # Create unique key for deduplication
                             RULE_KEY="${priority}|${direction}|${rule_name}|${src_addr}|${src_port}|${dst_addr}|${dst_port}|${protocol}|${action}"
                             
