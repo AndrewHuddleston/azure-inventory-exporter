@@ -61,6 +61,7 @@ NSG_CSV="${CSV_FILE_BASE}-nsg-rules.csv"
 VNET_CSV="${CSV_FILE_BASE}-vnets.csv"
 SUBNET_CSV="${CSV_FILE_BASE}-subnets.csv"
 DNS_CSV="${CSV_FILE_BASE}-private-dns.csv"
+NSG_ASSOC_CSV="${CSV_FILE_BASE}-nsg-associations.csv"
 
 # Write CSV headers
 echo "Role,Instance Name,OS,AZ,Instance Type,Storage Details" > "$VM_CSV"
@@ -68,6 +69,7 @@ echo "NSG Name,Priority,Direction,Name,Source,Src Port,Dst,Dst Port,Protocol,Act
 echo "VNet Name,Location,CIDR Block,DNS Servers" > "$VNET_CSV"
 echo "Subnet Name,Subnet Address,Subnet Range,# of Addresses,Delegation,Description" > "$SUBNET_CSV"
 echo "Azure Resource,Azure PrivateLink DNS Zone Name,Existing,Record,Comment" > "$DNS_CSV"
+echo "Subnet Name,Network Security Group" > "$NSG_ASSOC_CSV"
 
 # Track unique NSG rules across subscriptions (using a simpler approach for compatibility)
 UNIQUE_NSG_RULES_FILE=$(mktemp)
@@ -451,6 +453,17 @@ while IFS= read -r sub_id; do
                             
                             # Append to CSV
                             echo "$(csv_field "$subnet_name"),$(csv_field "$SUBNET_PREFIX"),$(csv_field "$SUBNET_RANGE"),$(csv_field "$USABLE_ADDRESSES"),$(csv_field "$DELEGATION"),$(csv_field "")" >> "$SUBNET_CSV"
+                            
+                            # Get NSG association for this subnet
+                            NSG_ID=$(az network vnet subnet show -g "$VNET_RG" --vnet-name "$vnet_name" -n "$subnet_name" --query "networkSecurityGroup.id" -o tsv 2>/dev/null)
+                            
+                            if [ -n "$NSG_ID" ] && [ "$NSG_ID" != "null" ]; then
+                                # Extract NSG name from the resource ID
+                                NSG_NAME=$(echo "$NSG_ID" | awk -F'/' '{print $NF}')
+                                echo "$(csv_field "$subnet_name"),$(csv_field "$NSG_NAME")" >> "$NSG_ASSOC_CSV"
+                            else
+                                echo "$(csv_field "$subnet_name"),$(csv_field "None")" >> "$NSG_ASSOC_CSV"
+                            fi
                         fi
                     done <<< "$SUBNETS"
                 fi
@@ -590,6 +603,7 @@ echo ""
 echo "CSV Files Generated:"
 echo "  - $VM_CSV"
 echo "  - $NSG_CSV"
+echo "  - $NSG_ASSOC_CSV"
 echo "  - $VNET_CSV"
 echo "  - $SUBNET_CSV"
 echo "  - $DNS_CSV"
