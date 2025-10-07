@@ -534,18 +534,17 @@ while IFS= read -r sub_id; do
                     RULES_JSON=$(az network nsg rule list -g "$NSG_RG" --nsg-name "$nsg_name" --query "[]" -o json 2>/dev/null)
                     
                     if [ -n "$RULES_JSON" ] && [ "$RULES_JSON" != "[]" ]; then
-                        # Use jq to handle nulls and arrays (port ranges can be arrays or strings)
-                        echo "$RULES_JSON" | jq -r '.[] | [
-                            (.name // "-"),
-                            (.priority // "-"),
-                            (.direction // "-"),
-                            (.sourceAddressPrefix // "-"),
-                            (if .sourcePortRange then (if (.sourcePortRange | type) == "array" then (.sourcePortRange | join(",")) else .sourcePortRange end) else "-" end),
-                            (.destinationAddressPrefix // "-"),
-                            (if .destinationPortRange then (if (.destinationPortRange | type) == "array" then (.destinationPortRange | join(",")) else .destinationPortRange end) else "-" end),
-                            (.protocol // "-"),
-                            (.access // "-")
-                        ] | @tsv' | while IFS=$'\t' read -r rule_name priority direction src_addr src_port dst_addr dst_port protocol action; do
+                        # Use jq to extract fields, ensuring ALL 9 fields always output
+                        echo "$RULES_JSON" | jq -r '.[] | 
+                            (.name // "-") + "\t" + 
+                            (.priority // "-" | tostring) + "\t" + 
+                            (.direction // "-") + "\t" + 
+                            (.sourceAddressPrefix // "-") + "\t" + 
+                            (if .sourcePortRange then (if (.sourcePortRange | type) == "array" then (.sourcePortRange | join(",")) else (.sourcePortRange | tostring) end) else "-" end) + "\t" + 
+                            (.destinationAddressPrefix // "-") + "\t" + 
+                            (if .destinationPortRange then (if (.destinationPortRange | type) == "array" then (.destinationPortRange | join(",")) else (.destinationPortRange | tostring) end) else "-" end) + "\t" + 
+                            (.protocol // "-") + "\t" + 
+                            (.access // "-")' | while IFS=$'\t' read -r rule_name priority direction src_addr src_port dst_addr dst_port protocol action; do
                             # Create unique key for deduplication
                             RULE_KEY="${priority}|${direction}|${rule_name}|${src_addr}|${src_port}|${dst_addr}|${dst_port}|${protocol}|${action}"
                             
