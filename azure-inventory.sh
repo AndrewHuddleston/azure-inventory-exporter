@@ -536,15 +536,15 @@ while IFS= read -r sub_id; do
                     if [ -n "$RULES_JSON" ] && [ "$RULES_JSON" != "[]" ]; then
                         # Use jq to handle nulls and arrays (port ranges can be arrays or strings)
                         echo "$RULES_JSON" | jq -r '.[] | [
-                            (.name // ""),
-                            (.priority // ""),
-                            (.direction // ""),
-                            (.sourceAddressPrefix // ""),
-                            (if .sourcePortRange then (if (.sourcePortRange | type) == "array" then (.sourcePortRange | join(",")) else .sourcePortRange end) else "" end),
-                            (.destinationAddressPrefix // ""),
-                            (if .destinationPortRange then (if (.destinationPortRange | type) == "array" then (.destinationPortRange | join(",")) else .destinationPortRange end) else "" end),
-                            (.protocol // ""),
-                            (.access // "")
+                            (.name // "-"),
+                            (.priority // "-"),
+                            (.direction // "-"),
+                            (.sourceAddressPrefix // "-"),
+                            (if .sourcePortRange then (if (.sourcePortRange | type) == "array" then (.sourcePortRange | join(",")) else .sourcePortRange end) else "-" end),
+                            (.destinationAddressPrefix // "-"),
+                            (if .destinationPortRange then (if (.destinationPortRange | type) == "array" then (.destinationPortRange | join(",")) else .destinationPortRange end) else "-" end),
+                            (.protocol // "-"),
+                            (.access // "-")
                         ] | @tsv' | while IFS=$'\t' read -r rule_name priority direction src_addr src_port dst_addr dst_port protocol action; do
                             # Create unique key for deduplication
                             RULE_KEY="${priority}|${direction}|${rule_name}|${src_addr}|${src_port}|${dst_addr}|${dst_port}|${protocol}|${action}"
