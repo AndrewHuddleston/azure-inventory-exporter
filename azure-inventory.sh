@@ -534,35 +534,38 @@ while IFS= read -r sub_id; do
                     RULES_JSON=$(az network nsg rule list -g "$NSG_RG" --nsg-name "$nsg_name" --query "[]" -o json 2>/dev/null)
                     
                     if [ -n "$RULES_JSON" ] && [ "$RULES_JSON" != "[]" ]; then
-                        # Use jq to extract fields in correct order matching CSV header
+                        # Use jq to build complete CSV rows directly - no bash variable parsing
                         # CSV Header: NSG Name,Priority,Direction,Name,Source,Src Port,Dst,Dst Port,Protocol,Action
-                        echo "$RULES_JSON" | jq -r '.[] | 
-                            (.priority // "-" | tostring) + "\t" + 
-                            (.direction // "-") + "\t" + 
-                            (.name // "-") + "\t" + 
-                            (.sourceAddressPrefix // "-") + "\t" + 
-                            (if .sourcePortRange then (if (.sourcePortRange | type) == "array" then (.sourcePortRange | join(",")) else (.sourcePortRange | tostring) end) else "-" end) + "\t" + 
-                            (.destinationAddressPrefix // "-") + "\t" + 
-                            (if .destinationPortRange then (if (.destinationPortRange | type) == "array" then (.destinationPortRange | join(",")) else (.destinationPortRange | tostring) end) else "-" end) + "\t" + 
-                            (.protocol // "-") + "\t" + 
-                            (.access // "-")' | while IFS=$'\t' read -r priority direction rule_name src_addr src_port dst_addr dst_port protocol action || [ -n "$priority" ]; do
-                            # Ensure all fields have values (use - as placeholder for empty)
-                            priority=${priority:-"-"}
-                            direction=${direction:-"-"}
-                            rule_name=${rule_name:-"-"}
-                            src_addr=${src_addr:-"-"}
-                            src_port=${src_port:-"-"}
-                            dst_addr=${dst_addr:-"-"}
-                            dst_port=${dst_port:-"-"}
-                            protocol=${protocol:-"-"}
-                            action=${action:-"-"}
+                        echo "$RULES_JSON" | jq -r --arg nsg "$nsg_name" '.[] | 
+                            $nsg + "," +
+                            (.priority // "-" | tostring) + "," +
+                            (.direction // "-") + "," +
+                            (.name // "-") + "," +
+                            (.sourceAddressPrefix // "-") + "," +
+                            (if .sourcePortRange then (if (.sourcePortRange | type) == "array" then (.sourcePortRange | join(",")) else (.sourcePortRange | tostring) end) else "-" end) + "," +
+                            (.destinationAddressPrefix // "-") + "," +
+                            (if .destinationPortRange then (if (.destinationPortRange | type) == "array" then (.destinationPortRange | join(",")) else (.destinationPortRange | tostring) end) else "-" end) + "," +
+                            (.protocol // "-") + "," +
+                            (.access // "-")' | while IFS= read -r csv_line; do
+                            
+                            # Extract fields for deduplication check (skip NSG name, get the 9 rule fields)
+                            priority=$(echo "$csv_line" | cut -d',' -f2)
+                            direction=$(echo "$csv_line" | cut -d',' -f3)
+                            rule_name=$(echo "$csv_line" | cut -d',' -f4)
+                            src_addr=$(echo "$csv_line" | cut -d',' -f5)
+                            src_port=$(echo "$csv_line" | cut -d',' -f6)
+                            dst_addr=$(echo "$csv_line" | cut -d',' -f7)
+                            dst_port=$(echo "$csv_line" | cut -d',' -f8)
+                            protocol=$(echo "$csv_line" | cut -d',' -f9)
+                            action=$(echo "$csv_line" | cut -d',' -f10)
                             
                             # Create unique key for deduplication
                             RULE_KEY="${priority}|${direction}|${rule_name}|${src_addr}|${src_port}|${dst_addr}|${dst_port}|${protocol}|${action}"
                             
                             # Only add if not already seen (using grep on temp file)
                             if ! grep -Fxq "$RULE_KEY" "$UNIQUE_NSG_RULES_FILE" 2>/dev/null; then
-                                echo "$(csv_field "$nsg_name"),$(csv_field "$priority"),$(csv_field "$direction"),$(csv_field "$rule_name"),$(csv_field "$src_addr"),$(csv_field "$src_port"),$(csv_field "$dst_addr"),$(csv_field "$dst_port"),$(csv_field "$protocol"),$(csv_field "$action")" >> "$NSG_CSV"
+                                # Quote all fields for proper CSV format
+                                echo "\"${nsg_name}\",\"${priority}\",\"${direction}\",\"${rule_name}\",\"${src_addr}\",\"${src_port}\",\"${dst_addr}\",\"${dst_port}\",\"${protocol}\",\"${action}\"" >> "$NSG_CSV"
                                 echo "$RULE_KEY" >> "$UNIQUE_NSG_RULES_FILE"
                                 RULE_COUNT=$((RULE_COUNT + 1))
                             fi
